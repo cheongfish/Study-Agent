@@ -1,16 +1,19 @@
 [project]
-name = "study-langgraph"
+name = "study-agent"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "faiss-cpu>=1.12.0",
+    "google-genai>=1.31.0",
     "langchain>=0.3.27",
     "langchain-community>=0.3.27",
     "langchain-google-genai>=2.1.9",
     "langchain-teddynote>=0.4.4",
     "langgraph>=0.6.5",
     "langsmith>=0.4.14",
+    "networkx>=3.5",
     "python-dotenv>=1.1.1",
 ]
 
