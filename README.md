@@ -41,17 +41,13 @@ This section provides an overview of the LangGraph examples included in this rep
 
 ## How to Run
 
-1.  **Install Dependencies:**
-    This project uses `uv` for dependency management. To install the dependencies, run:
+1.  **Install Dependencies**
+    * This project uses `uv` for dependency management.
+    * To install the dependencies, run below command
     ```bash
     uv sync
     ```
 
-2.  **Set up Environment Variables:**
-    Create a `.env` file in the root directory and add your API keys, following the structure in `configs.py`.
-
-3.  **Run Jupyter Notebooks:**
-    Launch Jupyter Lab or Jupyter Notebook and navigate to the `LangGraph` or `LangChain` directory to run the examples.
-    ```bash
-    jupyter lab
-    ```
+2.  **Set up Environment Variables**
+    * Create a `.env` file in the root directory and add your API keys, following the structure in `configs.py`.
+    * After filling in the values for the keys in the `dummy.env` file, rename it to `.env`.
