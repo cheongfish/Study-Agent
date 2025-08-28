@@ -1,86 +1,199 @@
-import psycopg2
+from psycopg2.extensions import register_adapter, AsIs
+import numpy as np
 from psycopg2.extras import execute_values
 import pandas as pd
-def setup_database_and_insert_data(
-    _DB_PARAMS,
-    dim:int=1024
-    ):
-    """
-    데이터베이스에 연결하여 테이블을 생성하고, JSON 파일의 데이터를 삽입합니다.
-    """
-    conn = None
-    try:
-        # 데이터베이스에 연결
-        print("데이터베이스에 연결 중...")
-        conn = psycopg2.connect(**_DB_PARAMS)
-        cursor = conn.cursor()
-        print("연결 성공.")
+from generate_embeddings import JsonEmbedder
+import os
+from utils import postgres_conn
 
-        # 1. pgvector 확장 기능 활성화
-        cursor.execute("CREATE EXTENSION IF NOT EXISTS vector;")
-        print("pgvector 확장 기능이 활성화되었습니다.")
 
-        # 2. 테이블 생성 (테이블이 이미 존재하면 실행되지 않음)
-        # 'order'는 SQL 예약어이므로 'order_val'로 변경합니다.
-        create_table_query = f"""
-        CREATE TABLE IF NOT EXISTS curriculum (
-            id SERIAL PRIMARY KEY,
-            basecode TEXT UNIQUE,
-            school_level TEXT,
-            grade TEXT,
-            domain TEXT,
-            category TEXT,
-            content TEXT,
-            order_val INT,
-            embedding VECTOR({dim})
-        );
+def addapt_numpy_float64(numpy_float64):
+    return AsIs(numpy_float64)
+
+class PostgresEmbeddingLoader:
+    """
+    A class to handle embedding loading processes into a PostgreSQL database with pgvector.
+    """
+    def __init__(self):
         """
-        cursor.execute(create_table_query)
-        print("'curriculum' 테이블이 준비되었습니다.")
+        Initializes the database connection and enables the pgvector extension.
+        """
+        self.conn = postgres_conn()
+        self.cursor = self.conn.cursor()
+        self._activate_pgvector()
 
-        # 3. JSON 파일 읽기
-        json_path = '/home/cheongwoon/workspace/Study-Agent/Demo/Data/curriculum_with_embeddings.json'
-        df = pd.read_json(json_path)
-        # NaN 값을 None으로 변환하여 DB에 NULL로 입력되도록 함
-        df = df.where(pd.notnull(df), None)
-        print(f"'{json_path}' 파일에서 {len(df)}개의 데이터를 읽었습니다.")
-        
-        # --- ✨✨✨ 오류 해결을 위한 코드 수정 부분 ✨✨✨ ---
-        # 4. 데이터 삽입을 위해 튜플 리스트로 변환
-        # embedding 리스트의 각 요소를 numpy.float32에서 python float으로 변환합니다.
-        data_tuples = []
-        for row in df.itertuples(index=False):
-            # embedding 필드가 리스트인지 확인하고, 각 요소를 float으로 변환
-            embedding_list = [e for e in row.embedding] if isinstance(row.embedding, list) else None
+    def _activate_pgvector(self):
+        """Activates the pgvector extension in the database."""
+        self.cursor.execute("CREATE EXTENSION IF NOT EXISTS vector;")
+        self.conn.commit()
+        print("pgvector extension is enabled.")
+
+    def _map_dtype_to_sql(
+        self,
+        dtype,
+        col_name,
+        vector_col,
+        vector_dim,
+        ):
+        """Maps pandas dtype to a corresponding PostgreSQL data type."""
+        if col_name == vector_col:
+            return f"VECTOR({vector_dim})"
+        if pd.api.types.is_integer_dtype(dtype):
+            return "INT"
+        elif pd.api.types.is_float_dtype(dtype):
+            return "FLOAT"
+        elif pd.api.types.is_string_dtype(dtype) or dtype == 'object':
+            return "TEXT"
+        else:
+            return "TEXT"  # Default for other types
+
+    def generate_create_table_sql(
+        self,
+        table_name,
+        df,
+        vector_col='embedding',
+        vector_dim=1024,
+        unique_col=None,
+        ):
+        """
+        Dynamically generates a CREATE TABLE SQL statement from a pandas DataFrame.
+        """
+        columns = ["id SERIAL PRIMARY KEY"]
+        for col, dtype in df.dtypes.items():
+            # Handle SQL reserved words like 'order'
+            col_name = 'order_val' if col.lower() == 'order' else col
             
-            # order 필드를 int로 변환 (None이 아닌 경우)
-            order_val = int(row.order) if row.order is not None else None
+            sql_type = self._map_dtype_to_sql(dtype, col, vector_col, vector_dim)
+            
+            if col_name == unique_col:
+                columns.append(f"{col_name} {sql_type} UNIQUE")
+            else:
+                columns.append(f"{col_name} {sql_type}")
 
-            data_tuples.append((
-                row.basecode, row.school_level, row.grade, row.domain, 
-                row.category, row.content, order_val, embedding_list
-            ))
+        return f"CREATE TABLE IF NOT EXISTS {table_name} ({', '.join(columns)});"
 
-        # 4. 데이터 삽입
-        # ON CONFLICT를 사용하여 gu_bun_value가 중복될 경우 삽입을 건너뛰도록 함
-        insert_query = """
-        INSERT INTO curriculum (basecode, school_level, grade, domain, category, content, order_val, embedding)
+    def create_table(
+        self,
+        table_name,
+        df,
+        vector_col='embedding',
+        vector_dim=1024,
+        unique_col=None,
+        ):
+        """Creates a table in the database based on the DataFrame structure."""
+        create_sql = self.generate_create_table_sql(table_name, df, vector_col, vector_dim, unique_col)
+        print(f"Executing: {create_sql}")
+        self.cursor.execute(create_sql)
+        self.conn.commit()
+        print(f"Table '{table_name}' created successfully.")
+
+    def insert_data(
+        self,
+        table_name,
+        df,
+        unique_col,
+        ):
+        """Inserts data from a DataFrame into the specified table."""
+        # Replace NaN with None for NULL insertion in DB
+        df = df.where(pd.notnull(df), None)
+
+        # Prepare column names, handling reserved words like 'order'
+        cols = ['order_val' if col.lower() == 'order' else col for col in df.columns]
+
+        # Constructing the insert query
+        insert_query = f"""
+        INSERT INTO {table_name} ({', '.join(cols)})
         VALUES %s
-        ON CONFLICT (basecode) DO NOTHING;
+        ON CONFLICT ({unique_col}) DO NOTHING;
         """
-        
-        # DataFrame을 튜플 리스트로 변환
-        data_tuples = [tuple(row) for row in df[['basecode', 'school_level', 'grade', 'domain', 'category', 'content', 'order', 'embedding']].itertuples(index=False)]
-        
-        print("데이터 삽입을 시작합니다...")
-        execute_values(cursor, insert_query, data_tuples)
-        conn.commit()
-        print(f"{len(data_tuples)}개의 데이터 삽입이 완료되었습니다.")
 
-    except psycopg2.Error as e:
-        print(f"데이터베이스 오류: {e}")
+        # Convert DataFrame to a list of tuples for insertion
+        data_tuples = [tuple(row) for row in df.itertuples(index=False)]
+
+        print(f"Inserting {len(data_tuples)} rows into '{table_name}'...")
+        execute_values(self.cursor, insert_query, data_tuples)
+        self.conn.commit()
+        print("Data insertion complete.")
+
+    def close_connection(self):
+        """Closes the database cursor and connection."""
+        if self.cursor:
+            self.cursor.close()
+        if self.conn:
+            self.conn.close()
+        print("Database connection closed.")
+
+if __name__ == '__main__':
+    from settings import env_path
+    from dotenv import load_dotenv
+    load_dotenv(env_path) 
+    # --- Example Usage ---
+    # Before running, ensure you have set your Google API key as an environment variable.
+    # In your terminal, run:
+    # export GOOGLE_API_KEY="YOUR_API_KEY"
+
+    try:
+        # 1. Initialize the embedder
+        model_name = "BAAI/bge-m3"
+        embedder = JsonEmbedder(model_name)
+
+        # 2. Define input/output paths and the column to embed
+        #    Please CHANGE these paths to your actual file paths.
+        input_json_path = '/home/cheongwoon/workspace/Study-Agent/Demo/Data/all_basecode.json'
+        output_json_path_tpl = '/home/cheongwoon/workspace/Study-Agent/Demo/Data/all_basecode_embeddings_{model_name}.json'
+        column_to_embed = 'content'  # The name of the column you want to embed
+        
+
+        print("\n--- Starting Embedding Process ---")
+        print(f"Input file: {input_json_path}")
+        print(f"Output file: {output_json_path_tpl}")
+        print(f"Column to embed: {column_to_embed}")
+        print("------------------------------------")
+
+        # 3. Run the process
+        # Note: This example will not run if the input file does not exist.
+        if os.path.exists(input_json_path):
+            embedder.process_file(
+                input_path=input_json_path,
+                output_path=output_json_path_tpl,
+                column_to_embed=column_to_embed
+            )
+        else:
+            print(f"Example skipped: Input file '{input_json_path}' not found.")
+            print("Please update the 'input_json_path' variable in the script to point to your file.")
+
+    except ValueError as e:
+        print(f"Error: {e}")
+        print("Please ensure your GOOGLE_API_KEY is set correctly.")
+    output_json_path = embedder.concated_outpath
+    # Example usage of the PostgresEmbeddingLoader class
+    loader = PostgresEmbeddingLoader()
+
+    try:
+        # 1. Load data from a JSON file into a pandas DataFrame
+        df = pd.read_json(output_json_path)
+        print(f"Loaded {len(df)} records from '{output_json_path}'")
+
+        # 2. Dynamically create a table from the DataFrame
+        table_name = 'curriculum'
+        # Determine vector dimension from the first embedding vector
+        vector_dim = len(df['embedding'][0]) if not df.empty and 'embedding' in df.columns and len(df['embedding']) > 0 else 1024
+        
+        loader.create_table(
+            table_name=table_name,
+            df=df,
+            vector_col='embedding',
+            vector_dim=vector_dim,
+            unique_col='basecode'
+        )
+
+        # 3. Insert the data into the newly created table
+        loader.insert_data(table_name=table_name, df=df, unique_col='basecode')
+
+    except FileNotFoundError:
+        print(f"Error: The file '{output_json_path}' was not found.")
+    except Exception as e:
+        print(f"An error occurred: {e}")
     finally:
-        if conn:
-            cursor.close()
-            conn.close()
-            print("데이터베이스 연결이 종료되었습니다.")
+        # 4. Close the database connection
+        loader.close_connection()

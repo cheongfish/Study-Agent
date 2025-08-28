@@ -1,4 +1,6 @@
 from langchain_google_genai import ChatGoogleGenerativeAI
+import psycopg2
+from settings import DB_PARAMS
 def init_llm():
 
     # define llm
@@ -11,3 +13,9 @@ def init_llm():
         # other params...
     )
     return llm
+
+def postgres_conn():
+    print("데이터베이스에 연결 중...")
+    conn = psycopg2.connect(**DB_PARAMS)
+    print("연결 성공.")
+    return conn
