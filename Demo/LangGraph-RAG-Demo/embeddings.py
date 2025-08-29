@@ -121,8 +121,6 @@ class PostgresEmbeddingLoader:
 
 if __name__ == '__main__':
     pwd = os.getcwd()
-    env_path = pwd + "/.env"
-    load_dotenv(env_path) 
     # --- Example Usage ---
     # Before running, ensure you have set your Google API key as an environment variable.
     # In your terminal, run:
