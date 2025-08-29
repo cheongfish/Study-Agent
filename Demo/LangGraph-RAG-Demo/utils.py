@@ -15,7 +15,5 @@ def init_llm():
     return llm
 
 def postgres_conn():
-    print("데이터베이스에 연결 중...")
     conn = psycopg2.connect(**DB_PARAMS)
-    print("연결 성공.")
     return conn

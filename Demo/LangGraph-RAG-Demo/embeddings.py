@@ -135,41 +135,47 @@ if __name__ == '__main__':
     try:
         # 1. Initialize the embedder
         model_name = "BAAI/bge-m3"
-        embedder = JsonEmbedder(model_name)
-
+        
         # 2. Define input/output paths and the column to embed
         #    Please CHANGE these paths to your actual file paths.
         input_json_path = '/home/cheongwoon/workspace/Study-Agent/Demo/Data/all_basecode.json'
         output_json_path_tpl = '/home/cheongwoon/workspace/Study-Agent/Demo/Data/all_basecode_embeddings_{model_name}.json'
         column_to_embed = 'content'  # The name of the column you want to embed
         
+        embedder = JsonEmbedder(model_name,output_json_path_tpl)
+        output_json_path = embedder.concated_outpath
 
         print("\n--- Starting Embedding Process ---")
         print(f"Input file: {input_json_path}")
-        print(f"Output file: {output_json_path_tpl}")
+        print(f"Output file: {output_json_path}")
         print(f"Column to embed: {column_to_embed}")
         print("------------------------------------")
 
         # 3. Run the process
         # Note: This example will not run if the input file does not exist.
-        if os.path.exists(input_json_path):
-            embedder.process_file(
-                input_path=input_json_path,
-                output_path=output_json_path_tpl,
-                column_to_embed=column_to_embed
-            )
+        if os.path.exists(output_json_path):
+            print("Already embedded file exists skip to load on pgvector")
+            
         else:
-            print(f"Example skipped: Input file '{input_json_path}' not found.")
-            print("Please update the 'input_json_path' variable in the script to point to your file.")
+            try:
+                embedder.process_file(
+                    input_path=input_json_path,
+                    output_path=output_json_path_tpl,
+                    column_to_embed=column_to_embed
+                )
+            except FileNotFoundError:
+                print(f"Example skipped: Input file '{input_json_path}' not found.")
+                print("Please update the 'input_json_path' variable in the script to point to your file.")
+                raise
 
     except ValueError as e:
         print(f"Error: {e}")
-        print("Please ensure your GOOGLE_API_KEY is set correctly.")
-    output_json_path = embedder.concated_outpath
+    
     # Example usage of the PostgresEmbeddingLoader class
     loader = PostgresEmbeddingLoader()
 
     try:
+        print("Start insert embedded file to pgvector")
         # 1. Load data from a JSON file into a pandas DataFrame
         df = pd.read_json(output_json_path)
         print(f"Loaded {len(df)} records from '{output_json_path}'")

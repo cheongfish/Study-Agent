@@ -12,6 +12,7 @@ class JsonEmbedder:
     def __init__(
         self,
         model_name,
+        output_path_tpl,
         api_key=None,
         ):
         """
@@ -27,11 +28,9 @@ class JsonEmbedder:
         self.api_key = api_key
         self.model_name = model_name
         self._init_model()
+        self.concated_outpath = output_path_tpl.format(model_name=self.result_postfix)
         print(f"Using embedding model: {self.model_name}")
         
-    @property
-    def output_path(self):
-        return self.concated_outpath
     def _init_model(self):
         
         if 'gemini' in self.model_name:
@@ -81,7 +80,6 @@ class JsonEmbedder:
     def process_file(
         self,
         input_path,
-        output_path,
         column_to_embed,
         batch_size=50,
         ):
@@ -90,7 +88,6 @@ class JsonEmbedder:
 
         Args:
             input_path (str): Path to the input JSON file.
-            output_path (str): Path to save the output JSON file with embeddings.
             column_to_embed (str): The name of the column in the JSON file to embed.
             batch_size (int, optional): The number of texts to embed in each API call.
                                        Defaults to 100.
@@ -119,10 +116,9 @@ class JsonEmbedder:
         df['embedding'] = all_embeddings
 
         # Ensure the output directory exists
-        output_dir = os.path.dirname(output_path)
+        output_dir = os.path.dirname(self.concated_outpath)
         if output_dir:
             os.makedirs(output_dir, exist_ok=True)
-        self.concated_outpath = output_path.format(model_name=self.result_postfix)
 
         print(f"Saving data with embeddings to {self.concated_outpath}...")
         df.to_json(
