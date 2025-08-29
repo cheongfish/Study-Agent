@@ -1,9 +1,35 @@
+from langchain_google_genai import ChatGoogleGenerativeAI
+import psycopg2
+from Settings import DB_PARAMS
+import os
+from dotenv import load_dotenv
 import pandas as pd
 from google.genai import Client
-import os
 from tqdm import tqdm
 from google.genai import types
 from sentence_transformers import SentenceTransformer
+
+pwd = os.getcwd()
+env_path = pwd + "/.env"
+load_dotenv(env_path)
+def init_llm():
+    # define llm
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-2.5-flash",
+        temperature=0,
+        max_tokens=None,
+        timeout=None,
+        max_retries=2,
+        # other params...
+    )
+    return llm
+
+def postgres_conn():
+    conn = psycopg2.connect(**DB_PARAMS)
+    return conn
+
+
+
 class JsonEmbedder:
     """
     A class to read a JSON file, embed a specific column using a specified Gemini embedding model,
@@ -20,6 +46,7 @@ class JsonEmbedder:
 
         Args:
             model_name (str): The name of the embedding model to use.
+            output_path_tpl(str): The path of output path teplate
             api_key (str, optional): Your Google API key. If not provided,
                                      it will be read from the GOOGLE_API_KEY
                                      environment variable. Defaults to None.
@@ -28,7 +55,9 @@ class JsonEmbedder:
         self.api_key = api_key
         self.model_name = model_name
         self._init_model()
-        self.concated_outpath = output_path_tpl.format(model_name=self.result_postfix)
+        self.concated_outpath = output_path_tpl.format(
+            model_name=self.result_postfix,
+        )
         print(f"Using embedding model: {self.model_name}")
         
     def _init_model(self):
@@ -44,8 +73,7 @@ class JsonEmbedder:
         else:
             self.model = SentenceTransformer(self.model_name)
             self.result_postfix = self.model_name.split("/")[-1]
-
-
+            
     def _embed_texts(
         self,
         texts,
@@ -76,7 +104,6 @@ class JsonEmbedder:
             print(f"An error occurred during embedding: {e}")
             return [None] * len(texts)
         
-
     def process_file(
         self,
         input_path,

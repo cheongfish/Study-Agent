@@ -1,14 +1,10 @@
-from psycopg2.extensions import register_adapter, AsIs
-import numpy as np
+import os
 from psycopg2.extras import execute_values
 import pandas as pd
-from generate_embeddings import JsonEmbedder
-import os
-from utils import postgres_conn
+from dotenv import load_dotenv
+from Utils import postgres_conn
+from Utils import JsonEmbedder
 
-
-def addapt_numpy_float64(numpy_float64):
-    return AsIs(numpy_float64)
 
 class PostgresEmbeddingLoader:
     """
@@ -124,8 +120,8 @@ class PostgresEmbeddingLoader:
         print("Database connection closed.")
 
 if __name__ == '__main__':
-    from settings import env_path
-    from dotenv import load_dotenv
+    pwd = os.getcwd()
+    env_path = pwd + "/.env"
     load_dotenv(env_path) 
     # --- Example Usage ---
     # Before running, ensure you have set your Google API key as an environment variable.
@@ -138,8 +134,8 @@ if __name__ == '__main__':
         
         # 2. Define input/output paths and the column to embed
         #    Please CHANGE these paths to your actual file paths.
-        input_json_path = '/home/cheongwoon/workspace/Study-Agent/Demo/Data/all_basecode.json'
-        output_json_path_tpl = '/home/cheongwoon/workspace/Study-Agent/Demo/Data/all_basecode_embeddings_{model_name}.json'
+        input_json_path = pwd + '/all_basecode.json'
+        output_json_path_tpl = pwd + "/all_basecode_embeddings_{model_name}.json"
         column_to_embed = 'content'  # The name of the column you want to embed
         
         embedder = JsonEmbedder(model_name,output_json_path_tpl)
@@ -160,7 +156,6 @@ if __name__ == '__main__':
             try:
                 embedder.process_file(
                     input_path=input_json_path,
-                    output_path=output_json_path_tpl,
                     column_to_embed=column_to_embed
                 )
             except FileNotFoundError:
