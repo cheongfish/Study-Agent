@@ -26,15 +26,34 @@ EduGen은 LangChain의 GraphState를 기반으로 각 기능이 모듈화된 노
 
 ## 4. 주요 파일 구성
 
+- **`app.py`**: FastAPI를 사용하여 LangGraph 에이전트를 API 형태로 노출하는 메인 서버 애플리케이션입니다.
+- **`demo_ui.py`**: Streamlit을 사용하여 사용자가 상호작용할 수 있는 웹 기반 데모 UI를 구현합니다.
 - **`Nodes.py`**: 그래프의 각 처리 단계를 담당하는 노드들의 로직을 정의합니다. (예: 요구사항 추출, DB 검색, 콘텐츠 생성)
 - **`States.py`**: 그래프의 각 노드 간에 전달되는 데이터의 상태와 구조를 Pydantic 모델과 TypedDict로 정의합니다.
 - **`Edges.py`**: 노드 간의 조건부 분기 등 제어 흐름과 로직을 정의합니다.
-- **`app.py`**: Streamlit을 사용하여 사용자가 상호작용할 수 있는 UI를 구현합니다.
 - **`Compile_graph.py`**: 정의된 노드와 엣지를 연결하여 실행 가능한 LangGraph 에이전트를 컴파일합니다.
 
-## 5. 기술 스택
+## 5. 실행 방법
+
+### 5.1. FastAPI 서버 실행
+
+LangGraph 에이전트를 실행하고 API를 활성화하려면 다음 명령어를 실행하세요.
+
+```bash
+uvicorn app:app --reload
+```
+
+### 5.2. Demo UI 실행
+
+사용자 친화적인 데모 인터페이스를 사용하려면, **FastAPI 서버가 실행 중인 상태에서** 별도의 터미널에 다음 명령어를 입력하세요.
+
+```bash
+streamlit run demo_ui.py
+```
+
+## 6. 기술 스택
 
 - **LLM**: Google `gemini-2.5-flash` (Free Tier)
 - **Embedding Model**: BAAI `bge-m3`
-- **주요 라이브러리**: LangChain, Pydantic, Sentence-Transformers, Streamlit
+- **주요 라이브러리**: LangChain, FastAPI, Uvicorn, Streamlit, Pydantic, Sentence-Transformers
 - **데이터베이스**: PostgreSQL (pgvector 확장 기능 사용)
