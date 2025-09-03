@@ -39,6 +39,20 @@ This section provides an overview of the LangGraph examples included in this rep
 *   **[asnyc_node_test.py](./LangGraph/asnyc_node_test.py)**: A Python script for testing the execution of asynchronous nodes.
 *   **[configs.py](./LangGraph/configs.py)**: A configuration file for storing shared settings, such as API keys and LLM definitions.
 
+## Demo Projects
+
+This section highlights demo projects built using the concepts from LangChain and LangGraph.
+
+### EduGen
+
+EduGen is a project demonstrating the use of LangGraph to create a knowledge graph from a document (`math_basecode.pdf`). It uses embeddings to process the text and builds a graph structure of nodes and edges. The project includes a Streamlit application for visualization and interaction.
+
+*   **[app.py](./Demo/EduGen/app.py)**: The main Streamlit application.
+*   **[Compile_graph.py](./Demo/EduGen/Compile_graph.py)**: Script to compile the knowledge graph.
+*   **[Nodes.py](./Demo/EduGen/Nodes.py)** & **[Edges.py](./Demo/EduGen/Edges.py)**: Define the structure of the graph components.
+*   **[embeddings.py](./Demo/EduGen/embeddings.py)**: Handles the creation of text embeddings.
+*   **[Demo_Snipets.ipynb](./Demo/EduGen/Demo_Snipets.ipynb)**: A notebook with snippets for demonstrating the project's functionality.
+
 ## How to Run
 
 1.  **Install Dependencies**

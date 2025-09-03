@@ -35,7 +35,23 @@ EduGen은 LangChain의 GraphState를 기반으로 각 기능이 모듈화된 노
 
 ## 5. 실행 방법
 
-### 5.1. FastAPI 서버 실행
+### 5.1. 데이터 임베딩 (최초 1회)
+
+데모를 실행하기 전, 미리 준비된 데이터를 임베딩하여 벡터 데이터베이스에 저장해야 합니다. 이 과정은 최초 한 번만 수행하면 됩니다.
+
+먼저, PostgreSQL 데이터베이스에서 pgvector 확장이 활성화되어 실행 중이어야 합니다. Docker를 사용하여 다음 명령어로 pgvector를 실행할 수 있습니다.
+
+```bash
+docker run -d -p 5432:5432 -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=test1234 --name pgvector pgvector/pgvector:0.8.0-pg14
+```
+
+pgvector가 준비되면, 다음 명령어를 실행하여 임베딩을 시작하세요.
+
+```bash
+uv run embeddings.py
+```
+
+### 5.2. FastAPI 서버 실행
 
 LangGraph 에이전트를 실행하고 API를 활성화하려면 다음 명령어를 실행하세요.
 
@@ -43,7 +59,7 @@ LangGraph 에이전트를 실행하고 API를 활성화하려면 다음 명령�
 uvicorn app:app --reload
 ```
 
-### 5.2. Demo UI 실행
+### 5.3. Demo UI 실행
 
 사용자 친화적인 데모 인터페이스를 사용하려면, **FastAPI 서버가 실행 중인 상태에서** 별도의 터미널에 다음 명령어를 입력하세요.
 

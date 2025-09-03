@@ -1,10 +1,12 @@
 # Define nodes
 from langchain_core.prompts import ChatPromptTemplate
 from sentence_transformers import SentenceTransformer
-from States import MainState,Requirements
+from States import MainState
+from States import Requirements
 from Helper_functions import search_metadata
 from Helper_functions import get_grader
-from Utils import init_llm,postgres_conn
+from Utils import init_llm
+from Utils import postgres_conn
 from Settings import embedding_model_name
 
 llm = init_llm()

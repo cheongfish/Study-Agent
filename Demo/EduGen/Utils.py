@@ -1,6 +1,7 @@
 from langchain_google_genai import ChatGoogleGenerativeAI
 import psycopg2
 from Settings import DB_PARAMS
+from Settings import env_path
 import os
 from dotenv import load_dotenv
 import pandas as pd
@@ -9,8 +10,6 @@ from tqdm import tqdm
 from google.genai import types
 from sentence_transformers import SentenceTransformer
 
-pwd = os.getcwd()
-env_path = pwd + "/.env"
 load_dotenv(env_path)
 def init_llm():
     # define llm
